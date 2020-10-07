@@ -1,0 +1,61 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "bento/ubuntu-18.04"
+  config.vm.box_check_update = true
+
+
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+  config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+  # Sincronizamos el directorio actual con el directorio base de Apache2.
+  config.vm.synced_folder "./", "/var/www/html"
+
+  # Establecemos VirtualBox como proveedor de máquina virtual, sin GUI.
+  config.vm.provider "virtualbox" do |vb|
+  vb.gui = false
+  vb.memory = "1024"
+  end
+
+
+
+  config.vm.provision "shell", inline: <<-SHELL
+      
+    #Definimos la variable de contraseña:
+      PASSWORD='098,Gatude'
+
+    #Actualizamos el repositorio
+      apt-get update
+
+    #Instamos Apache2
+      apt-get install -y apache2
+
+    #Instalamos PHP 7.4
+
+      sudo apt-get install -y software-properties-common
+      sudo apt-get install -y language-pack-en-base
+      sudo LC_ALL=es_ES.UTF-8 add-apt-repository ppa:ondrej/php
+      sudo apt-get update
+      sudo apt install -y php7.4 libapache2-mod-php7.4 php7.4-common php7.4-mbstring php7.4-xmlrpc php7.4-soap php7.4-gd php7.4-xml php7.4-intl php7.4-mysql php7.4-cli php7.4-mcrypt php7.4-zip php7.4-curl
+
+    #Instalamos MySQL
+
+      sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password $PASSWORD"
+      sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password $PASSWORD"
+      sudo apt-get -y install mysql-server
+
+    #Instalamos PHPMyAdmin 
+
+      sudo debconf-set-selections <<< "phpmyadmin phpmyadmin/dbconfig-install boolean true"
+      sudo debconf-set-selections <<< "phpmyadmin phpmyadmin/app-password-confirm password $PASSWORD"
+      sudo debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/admin-pass password $PASSWORD"
+      sudo debconf-set-selections <<< "phpmyadmin phpmyadmin/mysql/app-pass password $PASSWORD"
+      sudo debconf-set-selections <<< "phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2"
+      sudo apt-get -y install phpmyadmin
+
+    #Por último, reinicio Apache
+      sudo service apache2 restart
+  SHELL
+end
